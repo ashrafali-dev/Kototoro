@@ -1,5 +1,6 @@
 package org.skepsun.kototoro.reader.ui
 
+import android.app.Activity
 import android.os.Bundle
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -16,6 +17,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.edit
+import org.skepsun.kototoro.core.prefs.AppSettings
 import org.skepsun.kototoro.core.ui.BaseComposeActivity
 
 /**
@@ -34,7 +37,14 @@ class ChatbotLoginActivity : BaseComposeActivity() {
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 4.dp),
                 ) {
-                    TextButton(onClick = { finish() }) {
+                    TextButton(onClick = {
+                        CookieManager.getInstance().flush()
+                        kototoroAppSettings.prefs.edit {
+                            putBoolean(AppSettings.KEY_READER_TRANSLATION_CHATBOT_LOGIN_COMPLETED, true)
+                        }
+                        setResult(Activity.RESULT_OK)
+                        finish()
+                    }) {
                         Text("Done")
                     }
                 }
