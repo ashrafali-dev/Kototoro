@@ -75,7 +75,7 @@ class ChatbotWebViewBridge @Inject constructor() {
                 }
             }
 
-            val response = withTimeout(RESPONSE_TIMEOUT_MS) {
+            val response: String = withTimeout<String>(RESPONSE_TIMEOUT_MS) {
                 var previousText = ""
                 var stableReads = 0
                 while (true) {

@@ -12,6 +12,7 @@ object AISettingsSummarySupport {
             ReaderTranslationMode.LOCAL_ONLY -> R.string.reader_translation_mode_local_only
             ReaderTranslationMode.LOCAL_FIRST -> R.string.reader_translation_mode_local_first
             ReaderTranslationMode.API_ONLY -> R.string.reader_translation_mode_api_only
+            ReaderTranslationMode.CHATBOT_WEBVIEW -> R.string.reader_translation_mode_chatbot_webview
         },
     )
 

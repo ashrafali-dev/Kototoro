@@ -12,6 +12,7 @@ import org.skepsun.kototoro.core.dictionary.TranslationDictionaryRepository
 import org.skepsun.kototoro.reader.translate.data.ReaderTranslationTextCache
 import org.skepsun.kototoro.reader.translate.domain.OnnxReaderTranslationEngine
 import org.skepsun.kototoro.reader.translate.domain.ReaderTranslationCoordinator
+import org.skepsun.kototoro.reader.translate.domain.ChatbotWebViewBridge
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,6 +33,7 @@ class NovelTranslationProcessor @Inject constructor(
     @ContentHttpClient private val okHttpClient: OkHttpClient,
     private val onnxTranslationEngine: OnnxReaderTranslationEngine,
     private val translationDictionaryRepository: TranslationDictionaryRepository,
+    private val chatbotWebViewBridge: ChatbotWebViewBridge,
 ) {
 
     private val translationCoordinator by lazy(LazyThreadSafetyMode.NONE) {
@@ -40,6 +42,7 @@ class NovelTranslationProcessor @Inject constructor(
             textCache = textCache,
             onnxTranslationEngine = onnxTranslationEngine,
             okHttpClient = okHttpClient,
+            chatbotWebViewBridge = chatbotWebViewBridge,
             jsonMediaType = JSON_MEDIA_TYPE,
             defaultOpenAiModel = DEFAULT_OPENAI_MODEL,
             openAiTranslationSystemPrompt = OPENAI_NOVEL_SYSTEM_PROMPT,
