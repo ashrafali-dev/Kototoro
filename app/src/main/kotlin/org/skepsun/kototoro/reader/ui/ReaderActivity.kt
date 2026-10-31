@@ -156,7 +156,10 @@ class ReaderActivity :
         pendingChatbotTranslationAfterLogin = false
         if (result.resultCode == Activity.RESULT_OK) {
             CookieManager.getInstance().flush()
-            chatbotWebView?.reload()
+            chatbotWebView?.let { webView ->
+                chatbotWebViewBridge.onPageStarted(webView)
+                webView.reload()
+            }
             activateChatbotTranslation()
         } else {
             composeReaderController.showMessage("ChatGPT login was cancelled", 2500L)
@@ -885,7 +888,18 @@ class ReaderActivity :
             composeReaderController.updateOptions { copy(chapterTitleAtBottom = enabled) }
         }.launchIn(lifecycleScope)
         viewModel.translationLayerState.onEach {
+            val previousState = currentTranslationLayerState
             currentTranslationLayerState = it
+            if (
+                it == TranslationLayerState.FAILED &&
+                previousState != TranslationLayerState.FAILED &&
+                settings.readerTranslationMode == ReaderTranslationMode.CHATBOT_WEBVIEW
+            ) {
+                composeReaderController.showMessage(
+                    "ChatGPT অনুবাদ ব্যর্থ। লগইন ও ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+                    4000L,
+                )
+            }
             updateTranslationToggleButton()
         }.launchIn(lifecycleScope)
         viewModel.chapterTranslationProgress.onEach(::onChapterTranslationProgressChanged)
