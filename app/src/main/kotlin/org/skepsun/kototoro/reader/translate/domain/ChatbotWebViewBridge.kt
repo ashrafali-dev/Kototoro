@@ -40,6 +40,11 @@ class ChatbotWebViewBridge @Inject constructor() {
     }
 
     @MainThread
+    fun onPageStarted(webView: WebView) {
+        if (webViewRef?.get() === webView) pageLoaded = false
+    }
+
+    @MainThread
     fun onPageFinished(webView: WebView) {
         if (webViewRef?.get() === webView) pageLoaded = true
     }
