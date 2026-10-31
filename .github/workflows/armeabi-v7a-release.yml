@@ -1,9 +1,7 @@
 name: 32-bit ARM Release APK
 
 on:
-  push:
-    branches:
-      - feature/chatbot-webview-bridge-20261031
+  workflow_dispatch:
 
 permissions:
   contents: read
