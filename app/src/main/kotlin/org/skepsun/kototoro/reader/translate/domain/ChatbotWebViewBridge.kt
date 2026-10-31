@@ -5,6 +5,7 @@ import androidx.annotation.MainThread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -27,22 +28,28 @@ class ChatbotWebViewBridge @Inject constructor() {
     @Volatile
     private var webViewRef: WeakReference<WebView>? = null
 
+    @Volatile
+    private var pageLoaded = false
+
     fun isAttached(): Boolean = webViewRef?.get() != null
 
     @MainThread
     fun attach(webView: WebView) {
+        pageLoaded = false
         webViewRef = WeakReference(webView)
     }
 
     @MainThread
     fun onPageFinished(webView: WebView) {
-        // The composer is checked on demand; do not retain the Activity or WebView strongly.
-        if (webViewRef?.get() !== webView) return
+        if (webViewRef?.get() === webView) pageLoaded = true
     }
 
     @MainThread
     fun detach(webView: WebView) {
-        if (webViewRef?.get() === webView) webViewRef = null
+        if (webViewRef?.get() === webView) {
+            pageLoaded = false
+            webViewRef = null
+        }
     }
 
     suspend fun complete(prompt: String): String {
@@ -55,7 +62,7 @@ class ChatbotWebViewBridge @Inject constructor() {
             withTimeout(PAGE_READY_TIMEOUT_MS) {
                 while (true) {
                     check(isCurrent(webView)) { "Chatbot WebView was detached during a request" }
-                    if (evaluate(webView, COMPOSER_READY_SCRIPT) == "READY") break
+                    if (pageLoaded && evaluate(webView, COMPOSER_READY_SCRIPT) == "READY") break
                     delay(POLL_INTERVAL_MS)
                 }
             }
@@ -88,6 +95,11 @@ class ChatbotWebViewBridge @Inject constructor() {
             }
             check(response.isNotBlank()) { "Chatbot returned an empty response" }
             return response
+        } catch (timeout: TimeoutCancellationException) {
+            throw IllegalStateException(
+                "Chatbot WebView timed out. Check that you are signed in and the page is responsive.",
+                timeout,
+            )
         } finally {
             requestLock.unlock()
         }
