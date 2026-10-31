@@ -1,0 +1,47 @@
+name: Extract Existing 32-bit ARM APK
+
+on:
+  push:
+    branches:
+      - feature/chatbot-webview-bridge-20261031
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  extract-arm32:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download already-built release APK bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: Kototoro-release-apks
+          path: source-apks
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 41179013085
+
+      - name: Extract and verify 32-bit ARM APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find source-apks -type f -name '*armeabi-v7a*release.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo "No armeabi-v7a Release APK found in the existing artifact."
+            find source-apks -maxdepth 2 -type f -print
+            exit 1
+          fi
+          mkdir -p arm32-output
+          cp "$APK" arm32-output/Kototoro-armeabi-v7a-release.apk
+          echo "Extracted APK:"
+          ls -lh arm32-output/Kototoro-armeabi-v7a-release.apk
+          sha256sum arm32-output/Kototoro-armeabi-v7a-release.apk
+
+      - name: Upload only the 32-bit ARM APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Kototoro-32bit-ARM-APK
+          path: arm32-output/Kototoro-armeabi-v7a-release.apk
+          if-no-files-found: error
+          retention-days: 7
