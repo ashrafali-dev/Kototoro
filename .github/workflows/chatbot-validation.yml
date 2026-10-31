@@ -1,4 +1,5 @@
 name: Chatbot Integration Validation
+# Compile-only guard for the ChatGPT reader UI and WebView bridge.
 
 on:
   push:
