@@ -369,9 +369,8 @@ internal class ReaderTranslationCoordinator(
         charBudgetPerBatch: Int,
     ): ApiBatchResult {
         if (texts.isEmpty()) return ApiBatchResult(emptyMap())
-        if (!chatbotWebViewBridge.isAttached()) {
-            log { "chatbot WebView unavailable; no API/local fallback will be attempted" }
-            return ApiBatchResult(texts.associateWith { "" })
+        check(chatbotWebViewBridge.isAttached()) {
+            "ChatGPT WebView is not attached. Open the reader and connect ChatGPT first."
         }
         val mapped = LinkedHashMap<String, String>(texts.size)
         val discoveredPairs = mutableListOf<DictPair>()
@@ -389,16 +388,20 @@ internal class ReaderTranslationCoordinator(
                 batch.forEachIndexed { index, text -> appendLine("${index + 1}. $text") }
             }
             val prompt = "$openAiTranslationSystemPrompt\n\n$userPrompt"
-            val reply = runCatching { chatbotWebViewBridge.complete(prompt) }
-                .onFailure {
-                    if (it is kotlinx.coroutines.CancellationException) throw it
-                    log { "chatbot WebView request failed size=${batch.size} err=${it.message.orEmpty()}" }
-                }.getOrDefault("")
-            val parsed = if (reply.isBlank()) emptyMap() else parseBatchTranslationJson(reply, batch.size)
-            if (parsed.isEmpty()) {
-                log { "chatbot WebView reply parse failed size=${batch.size}" }
-                batch.forEach { mapped[it] = "" }
-                continue
+            val reply = try {
+                chatbotWebViewBridge.complete(prompt)
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                log {
+                    "chatbot WebView request failed size=${batch.size} " +
+                        "err=${error.javaClass.simpleName}: ${error.message.orEmpty()}"
+                }
+                throw IllegalStateException("ChatGPT translation request failed: ${error.message.orEmpty()}", error)
+            }
+            val parsed = parseBatchTranslationJson(reply, batch.size)
+            check(parsed.isNotEmpty()) {
+                "ChatGPT returned no valid JSON translations for batch size=${batch.size}. " +
+                    "Reply: ${oneLine(reply, 240)}"
             }
             batch.forEachIndexed { index, text ->
                 val output = AiTranslationOutputParser.parse(parsed[index + 1].orEmpty(), glossary)
