@@ -41,17 +41,20 @@ jobs:
         PREVIOUS_TAG=$(git describe --tags --abbrev=0 --exclude="$CURRENT_TAG" 2>/dev/null || echo "")
         echo "Previous Tag: $PREVIOUS_TAG"
 
+        # Keep the release notes bounded and store them in a file. Passing a
+        # repository-wide changelog as an action input can exceed the runner's
+        # process argument/environment limit on manual branch builds.
         if [ -z "$PREVIOUS_TAG" ]; then
-          echo "No previous tag found. Getting all logs."
-          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          echo "No previous tag found. Getting the latest 100 commits."
+          CHANGELOG=$(git log -n 100 --pretty=format:"- %s (%h)" --no-merges)
         else
-          echo "Getting logs between $PREVIOUS_TAG and $CURRENT_TAG"
-          CHANGELOG=$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG..$CURRENT_TAG" --no-merges)
+          echo "Getting up to 100 commits between $PREVIOUS_TAG and $CURRENT_TAG"
+          CHANGELOG=$(git log -n 100 --pretty=format:"- %s (%h)" "$PREVIOUS_TAG..$CURRENT_TAG" --no-merges)
         fi
 
-        echo "changelog<<EOF" >> $GITHUB_OUTPUT
-        echo "$CHANGELOG" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        mkdir -p release
+        printf '%s\\n' "$CHANGELOG" > release/CHANGELOG.md
+        echo "changelog_path=release/CHANGELOG.md" >> $GITHUB_OUTPUT
         echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
 
     - name: Set up JDK
@@ -128,13 +131,23 @@ jobs:
           cp "$apk" "$target"
         done
     
+    - name: Upload APKs for manual build
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v6
+      with:
+        name: Kototoro-release-apks
+        path: release/*.apk
+        if-no-files-found: error
+        retention-days: 7
+
     - name: Create Release
+      if: github.event_name != 'workflow_dispatch'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ env.TAG_NAME }}
         files: |
           release/*.apk
-        body: ${{ steps.changelog.outputs.changelog }}
+        body_path: ${{ steps.changelog.outputs.changelog_path }}
         draft: false
         prerelease: false
       env:
