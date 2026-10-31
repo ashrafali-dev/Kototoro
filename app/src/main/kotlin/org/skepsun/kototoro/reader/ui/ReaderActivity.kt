@@ -974,6 +974,9 @@ class ReaderActivity :
 
     override fun onResume() {
         super.onResume()
+        if (settings.readerTranslationMode == ReaderTranslationMode.CHATBOT_WEBVIEW && chatbotWebView == null) {
+            installChatbotTranslationWebView()
+        }
         // State saving also runs when this Activity stays alive in the background. The
         // retained pager need not report its anchor again before the next two-page turn.
         viewModel.clearTransientCrossChapterSuppression()
