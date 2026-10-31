@@ -931,6 +931,11 @@ class ReaderActivity :
             setOnTouchListener { _, _ -> true }
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    chatbotWebViewBridge.onPageStarted(view)
+                }
+
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
                     chatbotWebViewBridge.onPageFinished(view)
