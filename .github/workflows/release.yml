@@ -131,12 +131,12 @@ jobs:
           cp "$apk" "$target"
         done
     
-    - name: Upload APKs for manual build
+    - name: Upload 32-bit ARM APK for manual build
       if: github.event_name == 'workflow_dispatch'
       uses: actions/upload-artifact@v6
       with:
-        name: Kototoro-release-apks
-        path: release/*.apk
+        name: Kototoro-armeabi-v7a
+        path: release/*armeabi-v7a-release.apk
         if-no-files-found: error
         retention-days: 7
 
