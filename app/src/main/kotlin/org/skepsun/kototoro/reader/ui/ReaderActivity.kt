@@ -687,7 +687,13 @@ class ReaderActivity :
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(start = 16.dp, bottom = 112.dp),
-                    icon = { Text("AI") },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_bot),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
                     text = { Text("ChatGPT বাংলা") },
                 )
                 spaceSwitcherDelegate.Fab(
