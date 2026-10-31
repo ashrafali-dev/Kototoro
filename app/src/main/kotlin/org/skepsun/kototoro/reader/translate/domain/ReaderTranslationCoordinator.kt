@@ -377,11 +377,17 @@ internal class ReaderTranslationCoordinator(
         val batches = buildOpenAiMicroBatches(texts, batchLimit, charBudgetPerBatch)
         log { "chatbot WebView batches=${batches.size} texts=${texts.size}" }
         for (batch in batches) {
+            val targetLanguageLabel = if (targetLang.equals("bn", ignoreCase = true)) {
+                "Bengali (Bangla)"
+            } else {
+                targetLang
+            }
             val userPrompt = buildString {
-                appendLine("Translate manga OCR text from $sourceLang to $targetLang.")
-                appendLine("Return strict JSON only. No Markdown fences or explanations.")
+                appendLine("Translate the following manga OCR text from $sourceLang into $targetLanguageLabel.")
+                appendLine("Return one strictly valid JSON array only. No Markdown fences or explanations.")
                 appendLine("""[{"id":1,"translation":"..."},{"id":2,"translation":"..."}]""")
-                appendLine("Keep ids unchanged. If unreadable or uncertain, use an empty translation.")
+                appendLine("Return every id exactly once, in the same order. Keep ids unchanged.")
+                appendLine("If an item is unreadable, use an empty string for that item's translation.")
                 appendGlossary(glossary, batch)
                 appendLine()
                 appendLine("Texts:")
@@ -399,8 +405,8 @@ internal class ReaderTranslationCoordinator(
                 throw IllegalStateException("ChatGPT translation request failed: ${error.message.orEmpty()}", error)
             }
             val parsed = parseBatchTranslationJson(reply, batch.size)
-            check(parsed.isNotEmpty()) {
-                "ChatGPT returned no valid JSON translations for batch size=${batch.size}. " +
+            check(parsed.size == batch.size && batch.indices.all { parsed.containsKey(it + 1) }) {
+                "ChatGPT returned incomplete JSON translations: parsed=${parsed.size}, expected=${batch.size}. " +
                     "Reply: ${oneLine(reply, 240)}"
             }
             batch.forEachIndexed { index, text ->
