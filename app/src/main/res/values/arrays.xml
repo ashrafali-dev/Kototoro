@@ -215,6 +215,7 @@
 	<string-array name="reader_translation_modes" translatable="false">
 		<item>@string/reader_translation_mode_local_only</item>
 		<item>@string/reader_translation_mode_api_only</item>
+		<item>@string/reader_translation_mode_chatbot_webview</item>
 	</string-array>
 	<string-array name="reader_translation_ocr_engines" translatable="false">
 		<item>@string/reader_translation_ocr_engine_mlkit</item>
@@ -237,6 +238,7 @@
 	<string-array name="values_reader_translation_modes" translatable="false">
 		<item>LOCAL_ONLY</item>
 		<item>API_ONLY</item>
+		<item>CHATBOT_WEBVIEW</item>
 	</string-array>
 	<string-array name="values_reader_translation_ocr_engines" translatable="false">
 		<item>MLKIT</item>

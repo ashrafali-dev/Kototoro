@@ -1849,6 +1849,9 @@ class AppSettings @Inject constructor(@ApplicationContext private val context: C
     val readerTranslationPipelineMode: org.skepsun.kototoro.core.prefs.ReaderTranslationPipelineMode
         get() = org.skepsun.kototoro.core.prefs.ReaderTranslationPipelineMode.TWO_STAGE
 
+    val readerTranslationChatbotUrl: String
+        get() = prefs.getString(KEY_READER_TRANSLATION_CHATBOT_URL, "https://chatgpt.com/")?.trim().orEmpty()
+
     val readerTranslationApiEndpoint: String
         get() = prefs.getString(KEY_READER_TRANSLATION_API_ENDPOINT, "") ?: ""
 
@@ -3083,6 +3086,7 @@ class AppSettings @Inject constructor(@ApplicationContext private val context: C
         const val KEY_READER_TRANSLATION_TARGET_LANG = "reader_translation_target_lang"
         const val KEY_READER_TRANSLATION_OCR_ENGINE = "reader_translation_ocr_engine"
         const val KEY_READER_TRANSLATION_MODE = "reader_translation_mode"
+        const val KEY_READER_TRANSLATION_CHATBOT_URL = "reader_translation_chatbot_url"
         const val KEY_READER_TRANSLATION_PIPELINE_MODE = "reader_translation_pipeline_mode"
         const val KEY_READER_TRANSLATION_API_ENDPOINT = "reader_translation_api_endpoint"
         const val KEY_READER_TRANSLATION_API_KEY = "reader_translation_api_key"

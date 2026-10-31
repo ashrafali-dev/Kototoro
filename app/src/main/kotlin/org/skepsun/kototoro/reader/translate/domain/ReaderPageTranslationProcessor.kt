@@ -90,6 +90,7 @@ class ReaderPageTranslationProcessor @Inject constructor(
     private val onnxBubbleDetectorEngine: OnnxBubbleDetectorEngine,
     private val onnxTranslationEngine: OnnxReaderTranslationEngine,
     private val debugLogStore: ReaderTranslationDebugLogStore,
+    private val chatbotWebViewBridge: ChatbotWebViewBridge,
 ) {
 
     private val processingSemaphore = Semaphore(MAX_PARALLEL_TRANSLATION_PAGES)
@@ -183,6 +184,7 @@ class ReaderPageTranslationProcessor @Inject constructor(
             textCache = textCache,
             onnxTranslationEngine = onnxTranslationEngine,
             okHttpClient = okHttpClient,
+            chatbotWebViewBridge = chatbotWebViewBridge,
             jsonMediaType = JSON_MEDIA_TYPE,
             defaultOpenAiModel = DEFAULT_OPENAI_MODEL,
             openAiTranslationSystemPrompt = OPENAI_TRANSLATION_SYSTEM_PROMPT,

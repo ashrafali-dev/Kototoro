@@ -9,7 +9,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import android.content.Intent
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,7 @@ fun TranslationSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val prefs = settings.prefs
+    val context = LocalContext.current
 
     val modeNames = stringArrayResource(R.array.values_reader_translation_modes).toList()
     val sourceLangNames = stringArrayResource(R.array.values_reader_translation_source_languages).toList()
@@ -65,10 +68,17 @@ fun TranslationSettingsScreen(
                             SettingsChoiceOption(modeNames[index], label)
                         },
                         value = currentMode.name,
-                        onSettingsClick = onOpenApiSettings.takeIf {
-                            currentMode == ReaderTranslationMode.API_ONLY
+                        onSettingsClick = when (currentMode) {
+                            ReaderTranslationMode.API_ONLY -> onOpenApiSettings
+                            ReaderTranslationMode.CHATBOT_WEBVIEW -> ({
+                                context.startActivity(Intent(context, org.skepsun.kototoro.reader.ui.ChatbotLoginActivity::class.java))
+                            })
+                            else -> null
                         },
-                        settingsContentDescription = stringResource(R.string.reader_translation_open_api_settings),
+                        settingsContentDescription = when (currentMode) {
+                            ReaderTranslationMode.CHATBOT_WEBVIEW -> stringResource(R.string.reader_translation_open_chatbot_login)
+                            else -> stringResource(R.string.reader_translation_open_api_settings)
+                        },
                         onValueChange = { prefs.edit { putString(AppSettings.KEY_READER_TRANSLATION_MODE, it) } },
                     )
                 }

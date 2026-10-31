@@ -525,6 +525,7 @@ class ReaderViewModel @Inject constructor(
             ReaderTranslationPipelineMode.END_TO_END_API -> settings.readerE2eApiEndpoint.isNotBlank()
             ReaderTranslationPipelineMode.TWO_STAGE -> when (settings.readerTranslationMode) {
                 ReaderTranslationMode.API_ONLY -> settings.readerTranslationApiEndpoint.isNotBlank()
+                ReaderTranslationMode.CHATBOT_WEBVIEW -> settings.readerTranslationChatbotUrl.startsWith("https://", ignoreCase = true)
                 ReaderTranslationMode.LOCAL_ONLY,
                 ReaderTranslationMode.LOCAL_FIRST -> true
             }

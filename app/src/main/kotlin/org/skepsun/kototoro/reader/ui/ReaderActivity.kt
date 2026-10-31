@@ -7,7 +7,14 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,6 +114,8 @@ import org.skepsun.kototoro.reader.ui.compose.ReaderAutoScrollCallbacks
 import org.skepsun.kototoro.reader.ui.compose.DefaultComposeReaderImagePipeline
 import org.skepsun.kototoro.reader.domain.TranslationLayerState
 import org.skepsun.kototoro.reader.translate.domain.isAutoReaderTranslationLanguage
+import org.skepsun.kototoro.reader.translate.domain.ChatbotWebViewBridge
+import org.skepsun.kototoro.core.prefs.ReaderTranslationMode
 import org.skepsun.kototoro.reader.ui.eink.EInkPageIdentity
 import org.skepsun.kototoro.reader.ui.eink.EInkRefreshPolicy
 import org.skepsun.kototoro.reader.ui.pager.ReaderPage
@@ -129,6 +138,11 @@ class ReaderActivity :
 
     @Inject
     lateinit var settings: AppSettings
+
+    @Inject
+    lateinit var chatbotWebViewBridge: ChatbotWebViewBridge
+
+    private var chatbotWebView: WebView? = null
 
     @Inject
     lateinit var tapGridSettings: TapGridSettings
@@ -673,6 +687,7 @@ class ReaderActivity :
                 spaceSwitcherDelegate.Overlays()
             }
         }
+        installChatbotTranslationWebView()
         idlingDetector.bindToLifecycle(this)
         screenOrientationHelper.applySettings()
         viewModel.isBookmarkAdded.observe(this) {
@@ -858,6 +873,57 @@ class ReaderActivity :
         window.decorView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             applyDoubleModeAuto()
         }
+    }
+
+
+    /**
+     * The chatbot worker is hosted by this Activity, below the visible Compose reader.
+     * It cannot receive user input and is destroyed with this Activity.
+     */
+    private fun installChatbotTranslationWebView() {
+        if (settings.readerTranslationMode != ReaderTranslationMode.CHATBOT_WEBVIEW) return
+        val root = findViewById<ViewGroup>(android.R.id.content)
+        if (root !is FrameLayout) {
+            Log.e("ReaderChatbotWebView", "Reader content root is not a FrameLayout")
+            return
+        }
+
+        val webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.databaseEnabled = true
+            settings.javaScriptCanOpenWindowsAutomatically = false
+            settings.setSupportMultipleWindows(false)
+            isFocusable = false
+            isFocusableInTouchMode = false
+            isClickable = false
+            isLongClickable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            alpha = 0.01f
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setOnTouchListener { _, _ -> true }
+            webChromeClient = WebChromeClient()
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String) {
+                    super.onPageFinished(view, url)
+                    chatbotWebViewBridge.onPageFinished(view)
+                }
+            }
+        }
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        root.addView(
+            webView,
+            0,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        chatbotWebView = webView
+        chatbotWebViewBridge.attach(webView)
+        webView.loadUrl(settings.readerTranslationChatbotUrl)
+        Log.i("ReaderChatbotWebView", "Attached hidden chatbot WebView under Compose reader")
     }
 
     override fun onResume() {
@@ -1550,6 +1616,15 @@ class ReaderActivity :
         if (isFinishing && !isChangingConfigurations) {
             resetTranslationSession()
         }
+        chatbotWebView?.let { webView ->
+            chatbotWebViewBridge.detach(webView)
+            webView.stopLoading()
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.loadUrl("about:blank")
+            webView.removeAllViews()
+            webView.destroy()
+        }
+        chatbotWebView = null
         super.onDestroy()
     }
 

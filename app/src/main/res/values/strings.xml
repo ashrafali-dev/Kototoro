@@ -1561,6 +1561,8 @@
     <string name="reader_translation_quality_filter_enabled">Translation quality filter</string>
     <string name="reader_translation_quality_filter_enabled_summary">Hide translations that look garbled, unchanged, or likely OCR noise. Disable to render all non-empty translations.</string>
     <string name="reader_translation_mode">Translation mode</string>
+    <string name="reader_translation_mode_chatbot_webview">ChatGPT (WebView)</string>
+    <string name="reader_translation_open_chatbot_login">Sign in to ChatGPT</string>
     <string name="reader_translation_ocr_engine">Text extraction method</string>
     <string name="reader_translation_ocr_engine_mlkit">ML Kit (on-device, no download)</string>
     <string name="reader_translation_ocr_engine_paddle">Local model OCR</string>

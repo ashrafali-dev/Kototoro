@@ -157,6 +157,11 @@
 			</intent-filter>
 		</activity>
 		<activity
+			android:name="org.skepsun.kototoro.reader.ui.ChatbotLoginActivity"
+			android:exported="false"
+			android:label="@string/reader_translation_mode_chatbot_webview"
+			android:windowSoftInputMode="adjustResize" />
+		<activity
 			android:name="org.skepsun.kototoro.reader.ui.ReaderActivity"
 			android:exported="true">
 			<intent-filter>

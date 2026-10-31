@@ -57,6 +57,7 @@ internal class ReaderTranslationCoordinator(
     private val textCache: ReaderTranslationTextCache,
     private val onnxTranslationEngine: OnnxReaderTranslationEngine,
     private val okHttpClient: OkHttpClient,
+    private val chatbotWebViewBridge: ChatbotWebViewBridge,
     private val jsonMediaType: MediaType,
     private val defaultOpenAiModel: String,
     private val openAiTranslationSystemPrompt: String,
@@ -136,7 +137,7 @@ internal class ReaderTranslationCoordinator(
         val mode = settings.readerTranslationMode
         val onnxModelId = settings.readerTranslationOnnxModelId.trim()
         android.util.Log.d("ReaderTranslationCoordinator", "translateBlocksCached: mode=$mode, onnxModelId='$onnxModelId', misses.size=${misses.size}")
-        if (mode != ReaderTranslationMode.API_ONLY && onnxModelId.isNotBlank()) {
+        if (mode != ReaderTranslationMode.API_ONLY && mode != ReaderTranslationMode.CHATBOT_WEBVIEW && onnxModelId.isNotBlank()) {
             val needOnnx = misses.filter { translated[it].isNullOrBlank() }
             android.util.Log.d("ReaderTranslationCoordinator", "translateBlocksCached: calling ONNX for ${needOnnx.size} texts")
             if (needOnnx.isNotEmpty()) {
@@ -170,7 +171,7 @@ internal class ReaderTranslationCoordinator(
             }
         }
 
-        if (mode != ReaderTranslationMode.API_ONLY) {
+        if (mode != ReaderTranslationMode.API_ONLY && mode != ReaderTranslationMode.CHATBOT_WEBVIEW) {
             val needLocal = misses.filter { translated[it].isNullOrBlank() }
             if (needLocal.isNotEmpty()) {  // 只有还有未翻译的文本时才用 ML Kit
                 log { "translate local requested size=${needLocal.size}" }
@@ -337,10 +338,12 @@ internal class ReaderTranslationCoordinator(
         batchLimit: Int,
         charBudgetPerBatch: Int,
     ): ApiBatchResult {
-        val endpoint = resolveTranslationApiEndpoint()
-        if (endpoint.isBlank() || texts.isEmpty()) {
-            return ApiBatchResult(texts.associateWith { "" })
+        if (texts.isEmpty()) return ApiBatchResult(emptyMap())
+        if (settings.readerTranslationMode == ReaderTranslationMode.CHATBOT_WEBVIEW) {
+            return translateBatchByChatbot(texts, sourceLang, targetLang, glossary, batchLimit, charBudgetPerBatch)
         }
+        val endpoint = resolveTranslationApiEndpoint()
+        if (endpoint.isBlank()) return ApiBatchResult(texts.associateWith { "" })
 
         return if (isOpenAiCompatibleChatCompletionsEndpoint(endpoint)) {
             translateBatchByOpenAi(texts, sourceLang, targetLang, glossary, batchLimit, charBudgetPerBatch)
@@ -351,6 +354,59 @@ internal class ReaderTranslationCoordinator(
             }
             ApiBatchResult(map)
         }
+    }
+
+
+    /**
+     * Translate through the signed-in chatbot website. This mode has no API/local fallback.
+     */
+    private suspend fun translateBatchByChatbot(
+        texts: List<String>,
+        sourceLang: String,
+        targetLang: String,
+        glossary: List<DictPair>,
+        batchLimit: Int,
+        charBudgetPerBatch: Int,
+    ): ApiBatchResult {
+        if (texts.isEmpty()) return ApiBatchResult(emptyMap())
+        if (!chatbotWebViewBridge.isAttached()) {
+            log { "chatbot WebView unavailable; no API/local fallback will be attempted" }
+            return ApiBatchResult(texts.associateWith { "" })
+        }
+        val mapped = LinkedHashMap<String, String>(texts.size)
+        val discoveredPairs = mutableListOf<DictPair>()
+        val batches = buildOpenAiMicroBatches(texts, batchLimit, charBudgetPerBatch)
+        log { "chatbot WebView batches=${batches.size} texts=${texts.size}" }
+        for (batch in batches) {
+            val userPrompt = buildString {
+                appendLine("Translate manga OCR text from $sourceLang to $targetLang.")
+                appendLine("Return strict JSON only. No Markdown fences or explanations.")
+                appendLine("""[{"id":1,"translation":"..."},{"id":2,"translation":"..."}]""")
+                appendLine("Keep ids unchanged. If unreadable or uncertain, use an empty translation.")
+                appendGlossary(glossary, batch)
+                appendLine()
+                appendLine("Texts:")
+                batch.forEachIndexed { index, text -> appendLine("${index + 1}. $text") }
+            }
+            val prompt = "$openAiTranslationSystemPrompt\n\n$userPrompt"
+            val reply = runCatching { chatbotWebViewBridge.complete(prompt) }
+                .onFailure {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    log { "chatbot WebView request failed size=${batch.size} err=${it.message.orEmpty()}" }
+                }.getOrDefault("")
+            val parsed = if (reply.isBlank()) emptyMap() else parseBatchTranslationJson(reply, batch.size)
+            if (parsed.isEmpty()) {
+                log { "chatbot WebView reply parse failed size=${batch.size}" }
+                batch.forEach { mapped[it] = "" }
+                continue
+            }
+            batch.forEachIndexed { index, text ->
+                val output = AiTranslationOutputParser.parse(parsed[index + 1].orEmpty(), glossary)
+                mapped[text] = sanitizeTranslation(output.translatedText)
+                discoveredPairs += output.discoveredPairs
+            }
+        }
+        return ApiBatchResult(mapped, discoveredPairs)
     }
 
     private suspend fun translateBatchByOpenAi(
