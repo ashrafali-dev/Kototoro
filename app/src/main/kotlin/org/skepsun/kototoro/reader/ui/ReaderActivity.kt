@@ -1,6 +1,7 @@
 package org.skepsun.kototoro.reader.ui
 
 import org.skepsun.kototoro.core.prefs.isLight
+import android.app.Activity
 import android.app.assist.AssistContent
 import android.content.Intent
 import android.content.res.Configuration
@@ -15,6 +16,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.window.layout.FoldingFeature
@@ -143,6 +147,21 @@ class ReaderActivity :
     lateinit var chatbotWebViewBridge: ChatbotWebViewBridge
 
     private var chatbotWebView: WebView? = null
+    private var pendingChatbotTranslationAfterLogin = false
+
+    private val chatbotLoginLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (!pendingChatbotTranslationAfterLogin) return@registerForActivityResult
+        pendingChatbotTranslationAfterLogin = false
+        if (result.resultCode == Activity.RESULT_OK) {
+            CookieManager.getInstance().flush()
+            chatbotWebView?.reload()
+            activateChatbotTranslation()
+        } else {
+            composeReaderController.showMessage("ChatGPT login was cancelled", 2500L)
+        }
+    }
 
     @Inject
     lateinit var tapGridSettings: TapGridSettings
@@ -661,6 +680,14 @@ class ReaderActivity :
             Box(modifier = Modifier.fillMaxSize()) {
                 composeReaderController.Content(
                     showFloatingControlLabels = showFloatingControlLabels || presentationConfig.isTv,
+                )
+                ExtendedFloatingActionButton(
+                    onClick = ::onChatbotTranslateClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = 112.dp),
+                    icon = { Text("AI") },
+                    text = { Text("ChatGPT বাংলা") },
                 )
                 spaceSwitcherDelegate.Fab(
                     modifier = Modifier.fillMaxSize(),
@@ -1533,6 +1560,53 @@ class ReaderActivity :
                 translateContentDescription = contentDescription,
             )
         }
+    }
+
+    private fun onChatbotTranslateClick() {
+        // The dedicated reader button always selects ChatGPT WebView and Bengali output.
+        settings.prefs.edit {
+            putString(
+                AppSettings.KEY_READER_TRANSLATION_MODE,
+                ReaderTranslationMode.CHATBOT_WEBVIEW.name,
+            )
+        }
+        settings.readerTranslationTargetLanguage = "bn"
+        if (chatbotWebView == null) {
+            installChatbotTranslationWebView()
+        }
+        if (chatbotWebView == null) {
+            composeReaderController.showMessage("ChatGPT WebView could not be started", 3000L)
+            return
+        }
+        val loginCompleted = settings.prefs.getBoolean(
+            AppSettings.KEY_READER_TRANSLATION_CHATBOT_LOGIN_COMPLETED,
+            false,
+        )
+        if (!loginCompleted) {
+            pendingChatbotTranslationAfterLogin = true
+            chatbotLoginLauncher.launch(Intent(this, ChatbotLoginActivity::class.java))
+            return
+        }
+        activateChatbotTranslation()
+    }
+
+    private fun activateChatbotTranslation() {
+        if (chatbotWebView == null) {
+            installChatbotTranslationWebView()
+        }
+        if (chatbotWebView == null) {
+            composeReaderController.showMessage("ChatGPT WebView is unavailable", 3000L)
+            return
+        }
+        translationShortcutVisibleForSession = true
+        settings.isReaderTranslationEnabled = true
+        settings.isReaderTranslationShowTranslated = true
+        composeReaderController.updateActions {
+            copy(translateContextualVisible = true, translateActive = true)
+        }
+        updateTranslationToggleButton()
+        viewModel.retranslateCurrent()
+        composeReaderController.showMessage("ChatGPT বাংলা অনুবাদ শুরু হয়েছে", 2500L)
     }
 
     private fun toggleTranslationLayer() {
