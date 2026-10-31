@@ -867,7 +867,9 @@ internal class ReaderTranslationCoordinator(
                     val obj = arr.optJSONObject(i) ?: continue
                     val id = obj.optInt("id", i + 1)
                     val translation = pickTranslationField(obj)
-                    if (id > 0 && translation.isNotBlank()) {
+                    val hasTranslationField = listOf("translation", "translatedText", "text", "output")
+                        .any(obj::has)
+                    if (id > 0 && hasTranslationField) {
                         map[id] = translation
                     }
                 }
@@ -881,7 +883,9 @@ internal class ReaderTranslationCoordinator(
                         val obj = items.optJSONObject(i) ?: continue
                         val id = obj.optInt("id", i + 1)
                         val translation = pickTranslationField(obj)
-                        if (id > 0 && translation.isNotBlank()) {
+                        val hasTranslationField = listOf("translation", "translatedText", "text", "output")
+                            .any(obj::has)
+                        if (id > 0 && hasTranslationField) {
                             map[id] = translation
                         }
                     }
