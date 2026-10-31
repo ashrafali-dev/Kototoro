@@ -1,5 +1,4 @@
-name: Chatbot Integration Validation
-# Compile-only guard for the ChatGPT reader UI and WebView bridge.
+name: Chatbot 32-bit ARM APK
 
 on:
   push:
@@ -7,15 +6,16 @@ on:
       - feature/chatbot-webview-bridge-20261031
     paths:
       - 'app/src/main/**'
+      - 'app/build.gradle'
       - '.github/workflows/chatbot-validation.yml'
 
 permissions:
   contents: read
 
 jobs:
-  compile-release-kotlin:
+  build-arm32-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -32,5 +32,44 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Compile Android Release Kotlin
-        run: ./gradlew :app:compileReleaseKotlin --no-daemon --stacktrace
+      - name: Prepare signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          else
+            echo "No release keystore configured; generating a temporary signing key."
+            keytool -genkey -v -keystore release.keystore -alias release \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass password -keypass password \
+              -dname "CN=Kototoro Build, OU=Android, O=Kototoro, L=Dhaka, S=Dhaka, C=BD"
+          fi
+
+      - name: Build 32-bit ARM Release APK
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace \
+            -PARM32_ONLY=true \
+            -PRELEASE_STORE_FILE=../release.keystore \
+            -PRELEASE_STORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD || 'password' }}" \
+            -PRELEASE_KEY_ALIAS="${{ secrets.KEY_ALIAS || 'release' }}" \
+            -PRELEASE_KEY_PASSWORD="${{ secrets.KEY_PASSWORD || 'password' }}"
+
+      - name: Verify APK architecture and output
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-armeabi-v7a-release.apk"
+          test -s "$APK"
+          echo "32-bit ARM APK:"
+          ls -lh "$APK"
+          sha256sum "$APK"
+          mkdir -p arm32-output
+          cp "$APK" arm32-output/Kototoro-armeabi-v7a-release.apk
+
+      - name: Upload 32-bit ARM APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Kototoro-armeabi-v7a
+          path: arm32-output/Kototoro-armeabi-v7a-release.apk
+          if-no-files-found: error
+          retention-days: 7
