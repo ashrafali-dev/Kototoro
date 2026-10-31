@@ -47,6 +47,7 @@ class ChatbotLoginActivity : BaseComposeActivity() {
                         CookieManager.getInstance().flush()
                         kototoroAppSettings.prefs.edit {
                             putBoolean(AppSettings.KEY_READER_TRANSLATION_CHATBOT_LOGIN_COMPLETED, true)
+                            putLong(AppSettings.KEY_READER_TRANSLATION_CHATBOT_LOGIN_UPDATED_AT, System.currentTimeMillis())
                         }
                         setResult(Activity.RESULT_OK)
                         finish()
