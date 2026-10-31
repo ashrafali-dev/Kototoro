@@ -25,7 +25,9 @@ def requestedTaskNames = gradle.startParameter.taskNames.collect { it.toLowerCas
 def debugOnlyAbiBuild = !requestedTaskNames.isEmpty() &&
 	requestedTaskNames.any { it.contains('debug') } &&
 	requestedTaskNames.every { !it.contains('release') && !it.contains('nightly') }
-def activeAbiFilters = debugOnlyAbiBuild ? ['armeabi-v7a'] : allAbiFilters
+def arm32OnlyBuild = project.hasProperty('ARM32_ONLY') &&
+    project.property('ARM32_ONLY').toString().toBoolean()
+def activeAbiFilters = (debugOnlyAbiBuild || arm32OnlyBuild) ? ['armeabi-v7a'] : allAbiFilters
 
 android {
 	// Phase B: Compose 1.12 requires compileSdk 37; targetSdk stays 36
@@ -123,7 +125,7 @@ android {
 			enable true
 			reset()
 			include(*activeAbiFilters)
-			universalApk !debugOnlyAbiBuild
+			universalApk !debugOnlyAbiBuild && !arm32OnlyBuild
 		}
 	}
 	buildFeatures {
