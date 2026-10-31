@@ -78,7 +78,7 @@ class ChatbotWebViewBridge @Inject constructor() {
             val response: String = withTimeout<String>(RESPONSE_TIMEOUT_MS) {
                 var previousText = ""
                 var stableReads = 0
-                while (true) {
+                while (stableReads < REQUIRED_STABLE_READS) {
                     check(isCurrent(webView)) { "Chatbot WebView was detached during a request" }
                     val state = JSONObject(evaluate(webView, READ_RESPONSE_SCRIPT))
                     val text = state.optString("text").trim()
@@ -89,9 +89,9 @@ class ChatbotWebViewBridge @Inject constructor() {
                         stableReads = 0
                     }
                     previousText = text
-                    if (stableReads >= REQUIRED_STABLE_READS) return@withTimeout text
-                    delay(POLL_INTERVAL_MS)
+                    if (stableReads < REQUIRED_STABLE_READS) delay(POLL_INTERVAL_MS)
                 }
+                previousText
             }
             check(response.isNotBlank()) { "Chatbot returned an empty response" }
             return response
