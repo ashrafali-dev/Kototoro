@@ -37,6 +37,7 @@ class ChatbotLoginActivity : BaseComposeActivity() {
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 4.dp),
                 ) {
+                    Text("ChatGPT-তে সাইন ইন করুন, তারপর Done চাপুন। ফিরে গেলে বর্তমান পেজের বাংলা অনুবাদ শুরু হবে।")
                     TextButton(onClick = {
                         CookieManager.getInstance().flush()
                         kototoroAppSettings.prefs.edit {
