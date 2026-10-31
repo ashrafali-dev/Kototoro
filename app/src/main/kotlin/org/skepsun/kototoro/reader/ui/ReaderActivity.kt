@@ -147,6 +147,7 @@ class ReaderActivity :
     lateinit var chatbotWebViewBridge: ChatbotWebViewBridge
 
     private var chatbotWebView: WebView? = null
+    private var chatbotWebViewLoginUpdatedAtMs = 0L
     private var pendingChatbotTranslationAfterLogin = false
 
     private val chatbotLoginLauncher = registerForActivityResult(
@@ -156,10 +157,7 @@ class ReaderActivity :
         pendingChatbotTranslationAfterLogin = false
         if (result.resultCode == Activity.RESULT_OK) {
             CookieManager.getInstance().flush()
-            chatbotWebView?.let { webView ->
-                chatbotWebViewBridge.onPageStarted(webView)
-                webView.reload()
-            }
+            refreshChatbotWebViewAfterLogin()
             activateChatbotTranslation()
         } else {
             composeReaderController.showMessage("ChatGPT login was cancelled", 2500L)
@@ -967,15 +965,35 @@ class ReaderActivity :
             ),
         )
         chatbotWebView = webView
+        chatbotWebViewLoginUpdatedAtMs = settings.prefs.getLong(
+            AppSettings.KEY_READER_TRANSLATION_CHATBOT_LOGIN_UPDATED_AT,
+            0L,
+        )
         chatbotWebViewBridge.attach(webView)
         webView.loadUrl(settings.readerTranslationChatbotUrl)
         Log.i("ReaderChatbotWebView", "Attached hidden chatbot WebView under Compose reader")
     }
 
+    private fun refreshChatbotWebViewAfterLogin() {
+        val latestLoginUpdate = settings.prefs.getLong(
+            AppSettings.KEY_READER_TRANSLATION_CHATBOT_LOGIN_UPDATED_AT,
+            0L,
+        )
+        if (latestLoginUpdate <= chatbotWebViewLoginUpdatedAtMs) return
+        val webView = chatbotWebView ?: return
+        chatbotWebViewLoginUpdatedAtMs = latestLoginUpdate
+        chatbotWebViewBridge.onPageStarted(webView)
+        webView.reload()
+    }
+
     override fun onResume() {
         super.onResume()
-        if (settings.readerTranslationMode == ReaderTranslationMode.CHATBOT_WEBVIEW && chatbotWebView == null) {
-            installChatbotTranslationWebView()
+        if (settings.readerTranslationMode == ReaderTranslationMode.CHATBOT_WEBVIEW) {
+            if (chatbotWebView == null) {
+                installChatbotTranslationWebView()
+            } else {
+                refreshChatbotWebViewAfterLogin()
+            }
         }
         // State saving also runs when this Activity stays alive in the background. The
         // retained pager need not report its anchor again before the next two-page turn.
