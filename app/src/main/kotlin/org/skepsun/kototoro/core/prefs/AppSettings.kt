@@ -3087,6 +3087,7 @@ class AppSettings @Inject constructor(@ApplicationContext private val context: C
         const val KEY_READER_TRANSLATION_OCR_ENGINE = "reader_translation_ocr_engine"
         const val KEY_READER_TRANSLATION_MODE = "reader_translation_mode"
         const val KEY_READER_TRANSLATION_CHATBOT_URL = "reader_translation_chatbot_url"
+        const val KEY_READER_TRANSLATION_CHATBOT_LOGIN_COMPLETED = "reader_translation_chatbot_login_completed"
         const val KEY_READER_TRANSLATION_PIPELINE_MODE = "reader_translation_pipeline_mode"
         const val KEY_READER_TRANSLATION_API_ENDPOINT = "reader_translation_api_endpoint"
         const val KEY_READER_TRANSLATION_API_KEY = "reader_translation_api_key"
